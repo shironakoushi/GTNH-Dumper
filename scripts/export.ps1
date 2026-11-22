@@ -101,7 +101,14 @@ function Test-Inside([string]$Path, [string]$Parent) {
 function Remove-Safely([string]$Path, [string]$Parent) {
     if (-not (Test-Inside $Path $Parent)) { throw "拒绝删除 $Parent 之外的路径：$Path" }
     if ($DryRun) { Write-Host "  [dry-run] 删除 $Path"; return }
-    Remove-Item -LiteralPath $Path -Recurse -Force
+    # 游戏资源里有路径很长、名字特殊的文件，Remove-Item 删不掉：加长路径前缀交给 .NET 删。
+    $full = [IO.Path]::GetFullPath($Path)
+    $long = '\\?\' + $full
+    if (Test-Path -LiteralPath $full -PathType Container) {
+        [IO.Directory]::Delete($long, $true)
+    } else {
+        [IO.File]::Delete($long)
+    }
 }
 function Get-GameProcess {
     $key = if ($instance) { $instance } else { Split-Path (Split-Path $gameDir) -Leaf }
